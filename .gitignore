@@ -401,3 +401,6 @@ FodyWeavers.xsd
 
 # Exe files
 *.exe
+
+# Herramientas folder
+herramientas/*

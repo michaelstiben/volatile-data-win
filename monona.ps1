@@ -69,7 +69,7 @@ function Select-File-Dialog {
   }
 }
 
-function Ensure-Directory {
+function Initialize-Directory {
   param(
     [Parameter(Mandatory = $true)]
     [string]$DirectoryPath
@@ -91,7 +91,69 @@ function Ensure-Directory {
   }
 }
 
-function Volatility-Recopilation{
+function Get-Volatil-Data {
+  param(
+    [Parameter(Mandatory = $true)]
+    [string]$DirectoryPath
+  )
+
+  Write-Host "(1/12) Extrayendo la fecha del sistema"
+  $datetimeOutput = & "Get-Date"
+  $datetimeFilePath = $volatilDataPath + "\datetime.txt"
+  $datetimeOutput | Out-File -FilePath $datetimeFilePath -Encoding UTF8
+
+  Write-Host "(2/12) Extrayendo la lista de procesos"
+  $pslistOutput = & "Get-Process"
+  $pslistFilePath = $volatilDataPath + "\pslist.txt"
+  $pslistOutput | Out-File -FilePath $pslistFilePath -Encoding UTF8
+
+  Write-Host "(3/12) Extrayendo la lista de dlls"
+  $listdllsOutput = & "./herramientas/Listdlls.exe"
+  $listdllsFilePath = $volatilDataPath + "\listdlls.txt"
+  $listdllsOutput | Out-File -FilePath $listdllsFilePath -Encoding UTF8
+
+  Write-Host "(4/12) Extrayendo las conexiones en los puertos"
+  $netstatFilePath = $volatilDataPath + "\netstat.txt"
+  Netstat -an | Out-File -FilePath $netstatFilePath -Encoding UTF8
+
+  Write-Host "(5/12) Extrayendo informacion del host"
+  $psinfoOutput = & "./herramientas/psinfo.exe"
+  $psinfoFilePath = $volatilDataPath + "\psinfo.txt"
+  $psinfoOutput | Out-File -FilePath $psinfoFilePath -Encoding UTF8
+
+  Write-Host "(6/12) Extrayendo los logs de procesos"
+  $psloglistOutput = & "./herramientas/psloglist.exe"
+  $psloglistFilePath = $volatilDataPath + "\psloglist.txt"
+  $psloglistOutput | Out-File -FilePath $psloglistFilePath -Encoding UTF8
+
+  Write-Host "(7/12) Extrayendo la lista de servicios ejecutandose"
+  $psserviceOutput = & "./herramientas/psservice.exe"
+  $psserviceFilePath = $volatilDataPath + "\psservice.txt"
+  $psserviceOutput | Out-File -FilePath $psserviceFilePath -Encoding UTF8
+
+  Write-Host "(8/12) Extrayendo la lista de servicios ejecutandose"
+  $psloggedonOutput = & "./herramientas/psloggedon.exe"
+  $psloggedonFilePath = $volatilDataPath + "\psloggedon.txt"
+  $psloggedonOutput | Out-File -FilePath $psloggedonFilePath -Encoding UTF8
+
+  Write-Host "(9/12) Extrayendo la lista direcciones MAC registradas en la maquina"
+  $arpFilePath = $volatilDataPath + "\arp.txt"
+  arp -a | Out-File -FilePath $arpFilePath -Encoding UTF8
+
+  Write-Host "(10/12) Extrayendo la fecha de creacion de los archivos en la maquina"
+  $creationDateFilePath = $volatilDataPath + "\creationDate.txt"
+  cmd /r dir /t:c/a/s/o: c:\ | Out-File -FilePath $creationDateFilePath -Encoding UTF8 
+
+  Write-Host "(11/12) Extrayendo la fecha de modificacion de los archivos en la maquina"
+  $creationDateFilePath = $volatilDataPath + "\writeDate.txt"
+  cmd /r dir /t:w/a/s/o: c:\ | Out-File -FilePath $creationDateFilePath -Encoding UTF8 
+
+  Write-Host "(12/12) Extrayendo la fecha de acceso de los archivos en la maquina"
+  $creationDateFilePath = $volatilDataPath + "\accessDate.txt"
+  cmd /r dir /t:a/a/s/o: c:\ | Out-File -FilePath $creationDateFilePath -Encoding UTF8 
+}
+
+function Use-Volatility{
   param(
     [Parameter(Mandatory = $true)]
     [string]$DirectoryPath
@@ -169,14 +231,14 @@ function Volatility-Recopilation{
   $hivescanOutput | Out-File -FilePath $hivescanFilePath -Encoding UTF8
 
   $procexedumpFilePath = $DirectoryPath + "\procexedump"
-  Ensure-Directory -DirectoryPath $procexedumpFilePath
+  Initialize-Directory -DirectoryPath $procexedumpFilePath
   $procexedumpArguments = @("procexedump", "-f", $rawFilePath, "--profile", $volatilityProfile, "--kdbg", $physicalOffset, "--dump-dir", $procexedumpFilePath)
-  $procexedumpOutput = & $volatilityExePath @procexedumpArguments
+  & $volatilityExePath @procexedumpArguments
   
   $dlldumpFilePath = $DirectoryPath + "\dlldump"
-  Ensure-Directory -DirectoryPath $dlldumpFilePath
+  Initialize-Directory -DirectoryPath $dlldumpFilePath
   $dlldumpArguments = @("dlldump", "-f", $rawFilePath, "--profile", $volatilityProfile, "--kdbg", $physicalOffset, "--dump-dir", $dlldumpFilePath)
-  $dlldumpOutput = & $volatilityExePath @dlldumpArguments
+  & $volatilityExePath @dlldumpArguments
 
 }
 
@@ -192,10 +254,7 @@ $asciiArt = @"
 $welcomeMessage = @"
 Esta es una herramienta construida por el equipo monona para la recoleccion de datos volatiles.
 
-En la carpeta que seleccione a continuacion, se crearan tres directorios con la informacion volatil:
-  - dumpIt
-  - Mac
-  - volatility
+En la carpeta que seleccione a continuacion, se crearan los directorios con la informacion volatil.
 "@
 
 Write-Host $asciiArt
@@ -214,9 +273,6 @@ if ($folderBrowser.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
     # Get the selected folder path
     $selectedPath = $folderBrowser.SelectedPath
     Write-Host "el directorio seleccionado fue: $selectedPath`n"
-
-    $concatenatedDumpPath = $selectedPath + "\dumpIt"
-    $concatenatedMacPath = $selectedPath + "\Mac"
     
     $menuTitle = "Seleccione una opcion:"
     $menuOptions = @(
@@ -231,18 +287,21 @@ if ($folderBrowser.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
     # Perform actions based on the selection
     switch ($selection) {
       0 {
-
-        Start-Sleep -Seconds 2 # Example: pause for 2 seconds
+        $volatilDataPath = $selectedPath + "\Datos_volatiles"
+        Initialize-Directory -DirectoryPath $volatilDataPath
+        Clear-Host
+        Write-Host $asciiArt
+        Get-Volatil-Data -DirectoryPath $volatilDataPath
         Write-Host "Option 1 completed."
       }
       1 {
         $concatenatedVolatilityPath = $selectedPath + "\volatility"
-        Ensure-Directory -DirectoryPath $concatenatedVolatilityPath
+        Initialize-Directory -DirectoryPath $concatenatedVolatilityPath
         Clear-Host
         Write-Host $asciiArt
         Write-Host "Seleccione el archivo .raw ..."
         Start-Sleep -Seconds 2 # Example: pause for 2 seconds
-        Volatility-Recopilation -DirectoryPath $concatenatedVolatilityPath
+        Use-Volatility -DirectoryPath $concatenatedVolatilityPath
         Write-Host "Option 2 completed."
       }
     }
@@ -253,11 +312,6 @@ if ($folderBrowser.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
     Read-Host -Prompt "Presione Enter para terminar."
 } else {
     Write-Host "No se selecciono ningun directorio"
-
     # Wait for user input before closing
     Read-Host -Prompt "Presione Enter para terminar."
 }
-
-
-
-
