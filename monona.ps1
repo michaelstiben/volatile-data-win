@@ -10,13 +10,10 @@ function Show-Menu {
     [string[]]$Options
   )
 
-  # Clear the console
   Clear-Host
 
-  # Display the title
   Write-Host $Title -ForegroundColor Cyan
 
-  # Initialize selected option
   $SelectedIndex = 0
 
   do {
@@ -34,19 +31,18 @@ function Show-Menu {
 
     switch ($keyInfo.VirtualKeyCode) {
       38 { # Up arrow
-        $SelectedIndex = ($SelectedIndex - 1 + $Options.Count) % $Options.Count # Wrap around
+        $SelectedIndex = ($SelectedIndex - 1 + $Options.Count) % $Options.Count
         break
       }
       40 { # Down arrow
-        $SelectedIndex = ($SelectedIndex + 1) % $Options.Count # Wrap around
+        $SelectedIndex = ($SelectedIndex + 1) % $Options.Count
         break
       }
       13 { # Enter key
-        break # Exit the loop
+        break 
       }
     }
-
-    # Clear the menu for redraw
+    
     Clear-Host
     Write-Host $Title -ForegroundColor Cyan
 
@@ -57,15 +53,15 @@ function Show-Menu {
 
 function Select-File-Dialog {
   $OpenFileDialog = New-Object System.Windows.Forms.OpenFileDialog
-  $OpenFileDialog.InitialDirectory = "C:\" # Set initial directory (optional)
-  $OpenFileDialog.Filter = "RAW Files (*.raw)|*.raw|All Files (*.*)|*.*" # Filter for .raw files
+  $OpenFileDialog.InitialDirectory = "C:\" 
+  $OpenFileDialog.Filter = "RAW Files (*.raw)|*.raw|All Files (*.*)|*.*"
   $OpenFileDialog.Multiselect = $false
-  $OpenFileDialog.Title = "Select RAW Files" # Set the dialog title
+  $OpenFileDialog.Title = "Select RAW Files" 
 
   if ($OpenFileDialog.ShowDialog() -eq "OK") {
-    return $OpenFileDialog.FileName # Return the selected file path
+    return $OpenFileDialog.FileName 
   } else {
-    return $null # Return $null if no file is selected
+    return $null
   }
 }
 
@@ -91,66 +87,110 @@ function Initialize-Directory {
   }
 }
 
+function New-Hashes-File {
+  param (
+    [Parameter(Mandatory = $true)]
+    [System.Collections.Generic.List[string]] $filePaths,
+
+    [Parameter(Mandatory = $true)]
+    [string]$DirectoryPath
+  )
+  
+  $hashesOutputFile = $DirectoryPath + "\archivos_hashes.txt"
+
+  foreach($filePath in $filePaths){
+    try {
+      $hashMd5 = Get-FileHash -Algorithm MD5 -Path $filePath | Select-Object Hash
+      $hashSHA256 = Get-FileHash -Algorithm SHA256 -Path $filePath | Select-Object Hash
+      "Archivo = " + $filePaths | Out-File -FilePath $hashesOutputFile -Append
+      "MD5     = " + $hashMd5 | Out-File -FilePath $hashesOutputFile -Append
+      "SHA256  = " + $hashSHA256 | Out-File -FilePath $hashesOutputFile -Append
+    }
+    catch {
+      Write-Error "Sucedio un error procesando '$filePath': $_"
+    }
+  }
+}
+
 function Get-Volatil-Data {
   param(
     [Parameter(Mandatory = $true)]
     [string]$DirectoryPath
   )
 
+  Write-Host "OBTENIENDO INFORMACION VOLATIL EN ESTE EQUIPO."
+  Write-Host "Espere a que el proceso termine, puede tomar un tiempo."
+
+  $listCreatedFiles = New-Object System.Collections.Generic.List[string]
+
   Write-Host "(1/12) Extrayendo la fecha del sistema"
   $datetimeOutput = & "Get-Date"
   $datetimeFilePath = $volatilDataPath + "\datetime.txt"
   $datetimeOutput | Out-File -FilePath $datetimeFilePath -Encoding UTF8
+  $listCreatedFiles.Add($datetimeFilePath)
 
   Write-Host "(2/12) Extrayendo la lista de procesos"
   $pslistOutput = & "Get-Process"
   $pslistFilePath = $volatilDataPath + "\pslist.txt"
   $pslistOutput | Out-File -FilePath $pslistFilePath -Encoding UTF8
+  $listCreatedFiles.Add($pslistFilePath)
 
   Write-Host "(3/12) Extrayendo la lista de dlls"
   $listdllsOutput = & "./herramientas/Listdlls.exe"
   $listdllsFilePath = $volatilDataPath + "\listdlls.txt"
   $listdllsOutput | Out-File -FilePath $listdllsFilePath -Encoding UTF8
+  $listCreatedFiles.Add($listdllsFilePath)
 
   Write-Host "(4/12) Extrayendo las conexiones en los puertos"
   $netstatFilePath = $volatilDataPath + "\netstat.txt"
   Netstat -an | Out-File -FilePath $netstatFilePath -Encoding UTF8
+  $listCreatedFiles.Add($netstatFilePath)
 
   Write-Host "(5/12) Extrayendo informacion del host"
   $psinfoOutput = & "./herramientas/psinfo.exe"
   $psinfoFilePath = $volatilDataPath + "\psinfo.txt"
   $psinfoOutput | Out-File -FilePath $psinfoFilePath -Encoding UTF8
+  $listCreatedFiles.Add($psinfoFilePath)
 
   Write-Host "(6/12) Extrayendo los logs de procesos"
   $psloglistOutput = & "./herramientas/psloglist.exe"
   $psloglistFilePath = $volatilDataPath + "\psloglist.txt"
   $psloglistOutput | Out-File -FilePath $psloglistFilePath -Encoding UTF8
+  $listCreatedFiles.Add($psloglistFilePath)
 
   Write-Host "(7/12) Extrayendo la lista de servicios ejecutandose"
   $psserviceOutput = & "./herramientas/psservice.exe"
   $psserviceFilePath = $volatilDataPath + "\psservice.txt"
   $psserviceOutput | Out-File -FilePath $psserviceFilePath -Encoding UTF8
+  $listCreatedFiles.Add($psserviceFilePath)
 
   Write-Host "(8/12) Extrayendo la lista de servicios ejecutandose"
   $psloggedonOutput = & "./herramientas/psloggedon.exe"
   $psloggedonFilePath = $volatilDataPath + "\psloggedon.txt"
   $psloggedonOutput | Out-File -FilePath $psloggedonFilePath -Encoding UTF8
+  $listCreatedFiles.Add($psloggedonFilePath)
 
   Write-Host "(9/12) Extrayendo la lista direcciones MAC registradas en la maquina"
   $arpFilePath = $volatilDataPath + "\arp.txt"
   arp -a | Out-File -FilePath $arpFilePath -Encoding UTF8
+  $listCreatedFiles.Add($arpFilePath)
 
-  Write-Host "(10/12) Extrayendo la fecha de creacion de los archivos en la maquina"
+  Write-Host "(10/12) Extrayendo la fecha de creacion de los archivos en disco"
   $creationDateFilePath = $volatilDataPath + "\creationDate.txt"
   cmd /r dir /t:c/a/s/o: c:\ | Out-File -FilePath $creationDateFilePath -Encoding UTF8 
+  $listCreatedFiles.Add($creationDateFilePath)
 
-  Write-Host "(11/12) Extrayendo la fecha de modificacion de los archivos en la maquina"
-  $creationDateFilePath = $volatilDataPath + "\writeDate.txt"
-  cmd /r dir /t:w/a/s/o: c:\ | Out-File -FilePath $creationDateFilePath -Encoding UTF8 
+  Write-Host "(11/12) Extrayendo la fecha de modificacion de los archivos en disco"
+  $writeDateFilePath = $volatilDataPath + "\writeDate.txt"
+  cmd /r dir /t:w/a/s/o: c:\ | Out-File -FilePath $writeDateFilePath -Encoding UTF8 
+  $listCreatedFiles.Add($writeDateFilePath)
 
-  Write-Host "(12/12) Extrayendo la fecha de acceso de los archivos en la maquina"
-  $creationDateFilePath = $volatilDataPath + "\accessDate.txt"
-  cmd /r dir /t:a/a/s/o: c:\ | Out-File -FilePath $creationDateFilePath -Encoding UTF8 
+  Write-Host "(12/12) Extrayendo la fecha de acceso de los archivos en disco"
+  $accessDateFilePath = $volatilDataPath + "\accessDate.txt"
+  cmd /r dir /t:a/a/s/o: c:\ | Out-File -FilePath $accessDateFilePath -Encoding UTF8 
+  $listCreatedFiles.Add($accessDateFilePath)
+
+  New-Hashes-File -filePaths $listCreatedFiles -DirectoryPath $DirectoryPath
 }
 
 function Use-Volatility{
@@ -168,9 +208,15 @@ function Use-Volatility{
     return 0
   }
 
+  Write-Host "OBTENIENDO INFORMACION VOLATIL DE UN VOLCADO DE MEMORIA '$rawFilePath'."
+  Write-Host "Espere a que el proceso termine, puede tomar un tiempo."
+
+  $listCreatedFiles = New-Object System.Collections.Generic.List[string]
+
   $imageProfileRegex = "(VistaSP[0-2]x(64|86)|Win(10|2003SP[0-2]|2008(R2)?SP[0-2]|2012R2|2012|7SP[0-1]|81U1|8SP[0-1]|XP(SP[1-3])?)x(64|86))"
   $physicalOffsetRegex = "Offset \(V\)\s+:\s+(0x[0-9a-fA-F]+)"
 
+  Write-Host "(1/12) Extrayendo la informacionde la imagen ..."
   $imageInfoArguments = @("imageinfo", "-f", $rawFilePath)
   $imageInfoOutput = & $volatilityExePath @imageInfoArguments
 
@@ -179,67 +225,90 @@ function Use-Volatility{
   Write-Host "Perfil encontrado: $volatilityProfile"
   $imageInfoFilePath = $DirectoryPath + "\imageinfo.txt"
   $imageInfoOutput | Out-File -FilePath $imageInfoFilePath -Encoding UTF8
+  $listCreatedFiles.Add($imageInfoFilePath)
 
+  Write-Host "(2/12) Escaneando la imagen identificando cabeceras de KDBG..."
   $kdbgscanArguments = @("kdbgscan", "-f", $rawFilePath, "--profile", $volatilityProfile)
   $kdbgscanOutput = & $volatilityExePath @kdbgscanArguments
   $kdbgscanFilePath = $DirectoryPath + "\kdbgscan.txt"
   $kdbgscanOutput | Out-File -FilePath $kdbgscanFilePath -Encoding UTF8
-
+  $listCreatedFiles.Add($kdbgscanFilePath)
   
   $physicalOffsetMatches = $kdbgscanOutput | Select-String -Pattern $physicalOffsetRegex 
   $physicalOffset = $physicalOffsetMatches.Matches.Groups[1].Value
   Write-Host "Offset fisico encontrado: $physicalOffset"
 
+  Write-Host "(3/12) Extrayendo lista de procesos en ejecucion"
   $psListArguments = @("pslist", "-f", $rawFilePath, "--profile", $volatilityProfile, "--kdbg", $physicalOffset)
   $psListOutput = & $volatilityExePath @psListArguments
   $psListFilePath = $DirectoryPath + "\psList.txt"
   $psListOutput | Out-File -FilePath $psListFilePath -Encoding UTF8
+  $listCreatedFiles.Add($psListFilePath)
 
+  Write-Host "(4/12) Extrayendo lista de librerias dll en ejecucion"
   $dllListArguments = @("dlllist", "-f", $rawFilePath, "--profile", $volatilityProfile, "--kdbg", $physicalOffset)
   $dllListOutput = & $volatilityExePath @dllListArguments
   $dllListFilePath = $DirectoryPath + "\dllList.txt"
   $dllListOutput | Out-File -FilePath $dllListFilePath -Encoding UTF8
+  $listCreatedFiles.Add($dllListFilePath)
 
+  Write-Host "(5/12) Extrayendo lista de procesos relacionado con su handle"
   $handlesArguments = @("handles", "-f", $rawFilePath, "--profile", $volatilityProfile, "--kdbg", $physicalOffset)
   $handlesOutput = & $volatilityExePath @handlesArguments
   $handlesFilePath = $DirectoryPath + "\handles.txt"
   $handlesOutput | Out-File -FilePath $handlesFilePath -Encoding UTF8
+  $listCreatedFiles.Add($handlesFilePath)
 
+  Write-Host "(6/12) Escaneando y extrayendo la tabla maestra de archivos (MFT)"
   $mftparserArguments = @("mftparser", "-f", $rawFilePath, "--profile", $volatilityProfile, "--kdbg", $physicalOffset)
   $mftparserOutput = & $volatilityExePath @mftparserArguments
   $mftparserFilePath = $DirectoryPath + "\mftparser.txt"
   $mftparserOutput | Out-File -FilePath $mftparserFilePath -Encoding UTF8
+  $listCreatedFiles.Add($mftparserFilePath)
 
+  Write-Host "(7/12) Extrayendo linea de tiempo de los artefactos en memoria"
   $timelinerArguments = @("timeliner", "-f", $rawFilePath, "--profile", $volatilityProfile, "--kdbg", $physicalOffset)
   $timelinerOutput = & $volatilityExePath @timelinerArguments
   $timelinerFilePath = $DirectoryPath + "\timeliner.txt"
   $timelinerOutput | Out-File -FilePath $timelinerFilePath -Encoding UTF8
+  $listCreatedFiles.Add($timelinerFilePath)
 
+  Write-Host "(8/12) Extrayendo lista de comandos ejecutados en cmd.exe"
   $cmdscanArguments = @("cmdscan", "-f", $rawFilePath, "--profile", $volatilityProfile, "--kdbg", $physicalOffset)
   $cmdscanOutput = & $volatilityExePath @cmdscanArguments
   $cmdscanFilePath = $DirectoryPath + "\cmdscan.txt"
   $cmdscanOutput | Out-File -FilePath $cmdscanFilePath -Encoding UTF8
+  $listCreatedFiles.Add($cmdscanFilePath)
 
+  Write-Host "(9/12) Extrayendo lista de comandos ejecutados en cmd.exe con su respectivo buffer y salida (CONSOLE_INFORMATION)"
   $consolesArguments = @("consoles", "-f", $rawFilePath, "--profile", $volatilityProfile, "--kdbg", $physicalOffset)
   $consolesOutput = & $volatilityExePath @consolesArguments
   $consolesFilePath = $DirectoryPath + "\consoles.txt"
   $consolesOutput | Out-File -FilePath $consolesFilePath -Encoding UTF8
+  $listCreatedFiles.Add($consolesFilePath)
 
+  Write-Host "(10/12) Extrayendo las direcciones fisicas de los registros HIVES en memoria"
   $hivescanArguments = @("hivescan", "-f", $rawFilePath, "--profile", $volatilityProfile, "--kdbg", $physicalOffset)
   $hivescanOutput = & $volatilityExePath @hivescanArguments
   $hivescanFilePath = $DirectoryPath + "\hivescan.txt"
   $hivescanOutput | Out-File -FilePath $hivescanFilePath -Encoding UTF8
+  $listCreatedFiles.Add($hivescanFilePath)
 
+  Write-Host "(11/12) Creando los archivos ejecutables encontrados en memoria."
   $procexedumpFilePath = $DirectoryPath + "\procexedump"
+  Write-Host "(11/12) Los ejecutables se crearán en la ruta" + $procexedumpFilePath
   Initialize-Directory -DirectoryPath $procexedumpFilePath
   $procexedumpArguments = @("procexedump", "-f", $rawFilePath, "--profile", $volatilityProfile, "--kdbg", $physicalOffset, "--dump-dir", $procexedumpFilePath)
   & $volatilityExePath @procexedumpArguments
   
+  Write-Host "(12/12) Creando las librerias de ejecutables encontrados en la memoria"
   $dlldumpFilePath = $DirectoryPath + "\dlldump"
+  Write-Host "(12/12) Las librerias se crearán en la ruta" + $dlldumpFilePath
   Initialize-Directory -DirectoryPath $dlldumpFilePath
   $dlldumpArguments = @("dlldump", "-f", $rawFilePath, "--profile", $volatilityProfile, "--kdbg", $physicalOffset, "--dump-dir", $dlldumpFilePath)
   & $volatilityExePath @dlldumpArguments
 
+  New-Hashes-File -filePaths $listCreatedFiles -DirectoryPath $DirectoryPath
 }
 
 $volatilityExePath = ".\volatility.exe"
@@ -262,15 +331,11 @@ Write-Host $welcomeMessage
 
 Read-Host -Prompt "Presione Enter para iniciar"
 
-# Create a new instance of the FolderBrowserDialog
 $folderBrowser = New-Object System.Windows.Forms.FolderBrowserDialog
 
-# Set the description of the dialog
 $folderBrowser.Description = "Seleccione el folder donde desea almacenar la informacion volatil"
 
-# Show the dialog and check if the user clicked OK
 if ($folderBrowser.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
-    # Get the selected folder path
     $selectedPath = $folderBrowser.SelectedPath
     Write-Host "el directorio seleccionado fue: $selectedPath`n"
     
@@ -284,7 +349,6 @@ if ($folderBrowser.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
 
     Write-Host "Selecciono: $($menuOptions[$selection])" -ForegroundColor Yellow
 
-    # Perform actions based on the selection
     switch ($selection) {
       0 {
         $volatilDataPath = $selectedPath + "\Datos_volatiles"
@@ -292,7 +356,6 @@ if ($folderBrowser.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
         Clear-Host
         Write-Host $asciiArt
         Get-Volatil-Data -DirectoryPath $volatilDataPath
-        Write-Host "Option 1 completed."
       }
       1 {
         $concatenatedVolatilityPath = $selectedPath + "\volatility"
@@ -300,18 +363,15 @@ if ($folderBrowser.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
         Clear-Host
         Write-Host $asciiArt
         Write-Host "Seleccione el archivo .raw ..."
-        Start-Sleep -Seconds 2 # Example: pause for 2 seconds
+        Start-Sleep -Seconds 2 
         Use-Volatility -DirectoryPath $concatenatedVolatilityPath
-        Write-Host "Option 2 completed."
+
       }
     }
 
     Write-Host "Script finished." -ForegroundColor Green
-
-    # Wait for user input before closing
     Read-Host -Prompt "Presione Enter para terminar."
 } else {
     Write-Host "No se selecciono ningun directorio"
-    # Wait for user input before closing
     Read-Host -Prompt "Presione Enter para terminar."
 }
