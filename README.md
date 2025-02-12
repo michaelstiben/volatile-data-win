@@ -26,3 +26,12 @@ working_folder\
 
 Una vez configurados los archivos como se describe arriba, haga clic derecho sobre el script **monona.ps1** y ejecuté en PowerShell. Siga las instrucciones de la consola para recopilar los datos volátiles.
 
+![ss1](./images/ss1.PNG)
+
+![ss1](./images/ss2.PNG)
+
+![ss1](./images/ss3.PNG)
+
+![ss1](./images/ss4.PNG)
+
+![ss1](./images/ss5.PNG)
