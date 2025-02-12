@@ -102,7 +102,7 @@ function New-Hashes-File {
     try {
       $hashMd5 = Get-FileHash -Algorithm MD5 -Path $filePath | Select-Object Hash
       $hashSHA256 = Get-FileHash -Algorithm SHA256 -Path $filePath | Select-Object Hash
-      "Archivo = " + $filePaths | Out-File -FilePath $hashesOutputFile -Append
+      "Archivo = " + $filePath | Out-File -FilePath $hashesOutputFile -Append
       "MD5     = " + $hashMd5 | Out-File -FilePath $hashesOutputFile -Append
       "SHA256  = " + $hashSHA256 | Out-File -FilePath $hashesOutputFile -Append
     }
